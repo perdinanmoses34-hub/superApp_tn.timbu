@@ -73,7 +73,7 @@ export default function PwaInstallAndSplash({
     const isIos = /ipad|iphone|ipod/i.test(ua) && !(window as any).MSStream;
     const isMobile = isAndroid || isIos || /mobile|tablet/i.test(ua);
     const isDesktop = !isMobile;
-    const isInAppBrowser = /fban|fbav|instagram|line|whatsapp|micromessenger|snapchat|tiktok|twitter/i.test(ua);
+    const isInAppBrowser = /fban|fbav|instagram|line|whatsapp|micromessenger|snapchat|tiktok|twitter|wv/i.test(ua) || (isAndroid && !/chrome/i.test(ua));
     const isInIframe = window.self !== window.top;
 
     const isXiaomi = /xiaomi|poco|redmi|miui|hyperos/i.test(ua);
@@ -334,12 +334,49 @@ export default function PwaInstallAndSplash({
 
   const handleOpenInChrome = () => {
     const currentUrl = window.location.href;
-    if (deviceInfo.isAndroid && deviceInfo.isInAppBrowser) {
+    if (deviceInfo.isAndroid) {
       const cleanUrl = currentUrl.replace(/^https?:\/\//, '');
-      window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+      const targetIntentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+      
+      try {
+        window.location.href = targetIntentUrl;
+      } catch (e) {
+        console.warn('[PWA] Intent open warning:', e);
+      }
+
+      // Clipboard fallback copy
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(currentUrl);
+        }
+      } catch (err) {}
+
+      setTimeout(() => {
+        alert(
+          '📱 CARA MEMASANG DARI WHATSAPP:\n\n' +
+          'Link web telah disalin otomatis!\n\n' +
+          '1. Buka aplikasi Google Chrome di HP Android Anda.\n' +
+          '2. Tempel (Paste) link di bilah alamat atas browser Chrome.\n' +
+          '3. Ketuk "Instal" / Menu Tiga Titik (⋮) -> "Instal aplikasi" / "Tambahkan ke Layar Utama".'
+        );
+      }, 800);
     } else {
       setShowInstallModal(true);
       setShowManualGuide(true);
+    }
+  };
+
+  const handleCopyLink = () => {
+    const currentUrl = window.location.href;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(currentUrl);
+        alert('✓ Link web berhasil disalin!\n\nSilakan buka aplikasi Google Chrome di HP Anda, tempel (paste) link ini, lalu ketuk "Instal".');
+      } else {
+        alert(`Buka link ini di Google Chrome:\n${currentUrl}`);
+      }
+    } catch (err) {
+      alert(`Buka link ini di Google Chrome:\n${currentUrl}`);
     }
   };
 
@@ -472,10 +509,14 @@ export default function PwaInstallAndSplash({
             </div>
             <div className="truncate">
               <span className="font-black text-slate-950 uppercase tracking-tight block sm:inline">
-                Aplikasi CMS Gereja {deviceInfo.isDesktop ? 'Laptop & PC' : 'HP Android & iOS'}
+                {deviceInfo.isInAppBrowser && deviceInfo.isAndroid
+                  ? '📲 Dibuka dari WhatsApp / Social App'
+                  : `Aplikasi CMS Gereja ${deviceInfo.isDesktop ? 'Laptop & PC' : 'HP Android & iOS'}`}
               </span>
               <span className="hidden sm:inline text-[11px] text-slate-900 font-semibold ml-2">
-                • Pasang langsung ke device tanpa toko aplikasi
+                {deviceInfo.isInAppBrowser && deviceInfo.isAndroid
+                  ? '• Buka di Chrome agar tombol instal terpasang ke HP'
+                  : '• Pasang langsung ke device tanpa toko aplikasi'}
               </span>
             </div>
           </div>
@@ -489,6 +530,8 @@ export default function PwaInstallAndSplash({
               <span>
                 {isInstalling
                   ? 'Memasang...'
+                  : deviceInfo.isInAppBrowser && deviceInfo.isAndroid
+                  ? '🚀 BUKA CHROME'
                   : deviceInfo.isDesktop
                   ? '⚡ INSTAL LAPTOP/PC'
                   : '⚡ INSTAL KE HP'}
@@ -678,21 +721,30 @@ export default function PwaInstallAndSplash({
 
               {/* If opened inside WhatsApp or In-App Browser on Android */}
               {deviceInfo.isInAppBrowser && deviceInfo.isAndroid && (
-                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-xs">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-[11px]">
-                    <Chrome className="w-4 h-4" />
-                    <span>Dideteksi Dibuka dari WhatsApp / Social App</span>
+                <div className="p-4 bg-amber-500/20 border-2 border-amber-400/80 rounded-2xl space-y-3 text-xs">
+                  <div className="flex items-center gap-2 text-amber-300 font-extrabold text-xs uppercase tracking-wide">
+                    <Chrome className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>Dideteksi Dibuka Dari WhatsApp</span>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-snug">
-                    Untuk hasil instalasi 1-klik otomatis terbaik, buka link ini di Google Chrome.
+                  <p className="text-[11px] text-slate-100 leading-relaxed font-medium">
+                    Browser bawaan WhatsApp memblokir perintah instalasi otomatis. Untuk memasang aplikasi ke HP Anda, silakan buka di <strong className="text-amber-300">Google Chrome</strong> atau salin link di bawah ini.
                   </p>
-                  <button
-                    onClick={handleOpenInChrome}
-                    className="w-full py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:bg-amber-400 transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Buka & Instal Lewat Google Chrome</span>
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      onClick={handleOpenInChrome}
+                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg transition-all active:scale-95"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>🚀 BUKA GOOGLE CHROME</span>
+                    </button>
+                    <button
+                      onClick={handleCopyLink}
+                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 transition-all active:scale-95"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>📋 SALIN LINK WEB</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -750,7 +802,7 @@ export default function PwaInstallAndSplash({
               <div className="pt-2 flex flex-col gap-2">
                 {/* Main 1-Click Install Action Button */}
                 <button
-                  onClick={handleInstallClick}
+                  onClick={deviceInfo.isInAppBrowser && deviceInfo.isAndroid ? handleOpenInChrome : handleInstallClick}
                   disabled={isInstalling}
                   className="w-full py-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 hover:from-amber-400 hover:to-amber-200 text-slate-950 font-black text-sm rounded-2xl shadow-2xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 border border-amber-200/50"
                 >
@@ -758,6 +810,8 @@ export default function PwaInstallAndSplash({
                   <span>
                     {isInstalling
                       ? 'Proses Memasang Native...'
+                      : deviceInfo.isInAppBrowser && deviceInfo.isAndroid
+                      ? '🚀 BUKA GOOGLE CHROME UNTUK INSTAL'
                       : deviceInfo.isInIframe
                       ? '🔗 BUKA TAB BARU UNTUK INSTAL 1-KLIK'
                       : '⚡ INSTAL APLIKASI SEKARANG (1-KLIK)'}
