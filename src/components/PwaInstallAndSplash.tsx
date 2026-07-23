@@ -235,45 +235,38 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 2. If running inside an iFrame (e.g. AI Studio preview mode), open in a new top window where browser PWA prompts are fully supported
+    // 2. IF RUNNING INSIDE AI STUDIO IFRAME (window.self !== window.top):
+    // Chrome strictly blocks PWA prompts inside cross-origin iframes.
+    // We MUST open the URL directly in a full browser tab via window.open() so Chrome can trigger PWA installation!
     if (window.self !== window.top) {
       const originUrl = window.location.href.split('?')[0];
       const targetUrl = `${originUrl}?auto_install=true`;
-
-      try {
-        if (window.top) {
-          window.top.location.href = targetUrl;
-          return;
-        }
-      } catch (e) {
-        // Cross-origin fallback
+      
+      // Direct window.open in user gesture thread avoids popup blocker
+      const newWin = window.open(targetUrl, '_blank');
+      if (!newWin) {
+        // Fallback if popup blocker intercepted window.open
+        alert('👉 Silakan ketuk "Salin Link Aplikasi" lalu buka di Chrome HP Anda untuk menginstal secara langsung!');
+        setShowInstallModal(true);
       }
-
-      const a = document.createElement('a');
-      a.href = targetUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
       return;
     }
 
-    // 3. If in-app browser on Android (e.g. WhatsApp / IG / FB), redirect to Chrome directly
+    // 3. IF IN-APP BROWSER ON ANDROID (WhatsApp / IG / Facebook / TikTok / Line)
     if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
       handleOpenInChrome();
       return;
     }
 
-    // 4. Capturing prompt SYNCHRONOUSLY from window or state (CRITICAL: NO ASYNC/AWAIT DELAYS BEFORE PROMPT CALL!)
+    // 4. CAPTURING PROMPT SYNCHRONOUSLY FROM WINDOW OR STATE (NO ASYNC/AWAIT DELAYS!)
     const promptEvent = deferredPrompt || (window as any).deferredPrompt;
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
       try {
         setIsInstalling(true);
-        console.log('[PWA] Executing synchronous native install prompt dialog...');
+        console.log('[PWA] Triggering Chrome native install prompt dialog...');
         
-        // Call prompt() IMMEDIATELY inside the user click tick!
+        // Call prompt() immediately within user click tick!
         promptEvent.prompt();
 
         promptEvent.userChoice.then((choiceResult: any) => {
@@ -306,7 +299,7 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 5. If prompt is not available yet in browser (or Chrome hasn't triggered beforeinstallprompt)
+    // 5. IF PROMPT IS NOT YET READY IN CHROME (Service Worker registering or criteria pending)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     }
@@ -314,28 +307,27 @@ export default function PwaInstallAndSplash({
     setShowInstallModal(true);
     setShowManualGuide(true);
 
-    // Provide IMMEDIATE, DIRECT, ACTIVE FEEDBACK so the user knows EXACTLY what action to take!
     if (deviceInfo.isDesktop) {
       alert(
-        '📌 LANGKAH MEMASANG DI LAPTOP / PC:\n\n' +
+        '📌 CARA MEMASANG DI LAPTOP / PC:\n\n' +
         '1. Lihat di sebelah kanan Address Bar (Bilah Alamat URL Atas Browser Anda).\n' +
         '2. Klik ikon [ ⬇️ ] atau [ ⊕ ] "Instal CMS Gereja".\n' +
-        '3. Atau klik Menu Tiga Titik (⋮) di kanan atas -> pilih "Instal CMS Gereja..." atau "Simpan dan bagikan -> Instal situs sebagai aplikasi".'
+        '3. Atau klik Menu Tiga Titik (⋮) di kanan atas -> pilih "Instal CMS Gereja...".'
       );
     } else if (deviceInfo.isIos) {
       alert(
-        '📱 LANGKAH MEMASANG DI IPHONE / IPAD:\n\n' +
-        '1. Pastikan Anda membuka halaman ini di browser Safari.\n' +
+        '📱 CARA MEMASANG DI IPHONE / IPAD:\n\n' +
+        '1. Buka halaman ini di browser Safari.\n' +
         '2. Ketuk tombol Bagikan / Share (📤) di bagian bawah layar.\n' +
-        '3. Gulir ke bawah lalu pilih "Tambahkan ke Layar Utama" (Add to Home Screen).\n' +
+        '3. Pilih "Tambahkan ke Layar Utama" (Add to Home Screen).\n' +
         '4. Ketuk "Tambah" di kanan atas.'
       );
     } else {
       alert(
-        '📱 LANGKAH MEMASANG DI HP ANDROID:\n\n' +
+        '📱 CARA MEMASANG DI HP ANDROID:\n\n' +
         '1. Ketuk tombol Menu Tiga Titik (⋮) di sudut kanan atas browser Chrome HP Anda.\n' +
         '2. Pilih menu "Instal aplikasi" atau "Tambahkan ke Layar Utama".\n' +
-        '3. Ketuk "Instal" — Ikon aplikasi akan langsung terpasang di layar utama HP Anda!'
+        '3. Ketuk "Instal" — Aplikasi akan langsung terpasang di layar HP Anda!'
       );
     }
   };
