@@ -12,6 +12,18 @@
           window.onPwaPromptCaptured(e);
         }
       });
+
+      // Register Service Worker early in head for maximum PWA responsiveness
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then(function (reg) {
+            console.log('[PWA] Early SW registered successfully with scope:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('[PWA] Early SW registration error:', err);
+          });
+      }
+
       // Checks for real file extensions rather than just presence of a dot, so repos like 'tn.timbu_web' redirect properly.
       if (
         window.location.hostname.endsWith('.github.io') &&

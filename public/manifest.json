@@ -2,7 +2,7 @@
   "id": "./",
   "short_name": "CMS Gereja",
   "name": "CMS - SYSTEM MANAJEMEN CHURCH",
-  "description": "Aplikasi CMS Sistem Manajemen & Pelayanan Gereja Digital Android Standalone",
+  "description": "Aplikasi CMS Sistem Manajemen & Pelayanan Gereja Digital Standalone Fullscreen Native",
   "prefer_related_applications": false,
   "icons": [
     {
@@ -37,5 +37,21 @@
   "display": "standalone",
   "display_override": ["standalone", "fullscreen", "minimal-ui"],
   "orientation": "portrait",
-  "categories": ["utilities", "lifestyle"]
+  "categories": ["utilities", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Jadwal Ibadah",
+      "short_name": "Ibadah",
+      "description": "Lihat Jadwal Ibadah Gereja",
+      "url": "./?tab=jadwal",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kas & Donasi",
+      "short_name": "Donasi",
+      "description": "Persembahan Kas Gereja",
+      "url": "./?tab=donasi",
+      "icons": [{ "src": "./icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

@@ -193,10 +193,38 @@ export default function PwaInstallAndSplash({
     };
   }, []);
 
+  // Auto-trigger native prompt if user arrived via direct install link or auto_install flag
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAutoInstall = urlParams.get('auto_install') === 'true';
+    if (isAutoInstall && window.self === window.top) {
+      const triggerAutoPrompt = async () => {
+        const promptEvent = deferredPrompt || (window as any).deferredPrompt;
+        if (promptEvent && typeof promptEvent.prompt === 'function') {
+          try {
+            console.log('[PWA] Auto triggering native install prompt...');
+            await promptEvent.prompt();
+          } catch (e) {
+            console.warn('[PWA] Auto prompt trigger caught:', e);
+          }
+        }
+      };
+      
+      triggerAutoPrompt();
+      const timer = setTimeout(triggerAutoPrompt, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [deferredPrompt]);
+
   const handleInstallClick = async () => {
-    // 1. If running inside an iFrame (e.g. AI Studio preview mode), launch in a new tab so browser native PWA triggers work
+    // 1. If running inside an iFrame (e.g. AI Studio preview mode), launch in a new tab with auto_install parameter so native PWA triggers work instantly
     if (window.self !== window.top) {
-      window.open(window.location.href, '_blank');
+      const currentUrl = window.location.href;
+      const targetUrl = currentUrl.includes('auto_install=true')
+        ? currentUrl
+        : currentUrl + (currentUrl.includes('?') ? '&' : '?') + 'auto_install=true';
+      window.open(targetUrl, '_blank');
       return;
     }
 
@@ -209,7 +237,7 @@ export default function PwaInstallAndSplash({
         await promptEvent.prompt();
         const choiceResult = await promptEvent.userChoice;
         if (choiceResult && choiceResult.outcome === 'accepted') {
-          console.log('[PWA] Native install prompt accepted');
+          console.log('[PWA] Native install prompt accepted!');
           setIsStandalone(true);
           setShowInstallBanner(false);
           setShowInstallModal(false);
@@ -217,21 +245,23 @@ export default function PwaInstallAndSplash({
           setShowManualGuide(false);
         } else {
           setShowInstallModal(true);
-          setShowManualGuide(true);
         }
       } catch (err) {
         console.warn('[PWA] Native prompt trigger failed or consumed:', err);
         setShowInstallModal(true);
-        setShowManualGuide(true);
       } finally {
         setIsInstalling(false);
         setDeferredPrompt(null);
         (window as any).deferredPrompt = null;
       }
     } else {
-      // Show direct install modal with clear device-specific steps!
+      // If in-app browser on Android (e.g. WhatsApp / IG / FB), redirect to Chrome directly
+      if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
+        handleOpenInChrome();
+        return;
+      }
+      // Show direct install confirmation modal
       setShowInstallModal(true);
-      setShowManualGuide(true);
     }
   };
 
