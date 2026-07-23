@@ -304,13 +304,21 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 5. IF PROMPT IS NOT YET CAPTURED OR STILL LOADING IN CHROME
+    // 5. IF PROMPT IS NOT YET CAPTURED (Service Worker registering or Chrome browser menu trigger needed)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     }
 
     setShowInstallModal(true);
-    showToast('📱 Membuka jendela konfirmasi instalasi. Ketuk "INSTAL APLIKASI SEKARANG" untuk melanjutkan.');
+    setShowManualGuide(true);
+
+    if (deviceInfo.isDesktop) {
+      showToast('📌 CARA INSTAL DI LAPTOP/PC: Klik ikon [ ⬇️ / ⊕ ] di samping Address Bar atas Chrome, atau titik tiga (⋮) -> pilih "Instal CMS Gereja...".');
+    } else if (deviceInfo.isIos) {
+      showToast('📱 CARA INSTAL DI IPHONE: Buka di Safari -> Ketuk Bagikan (📤) -> "Tambahkan ke Layar Utama".');
+    } else {
+      showToast('📱 CARA INSTAL DI HP: Ketuk Titik Tiga (⋮) di kanan atas Chrome -> pilih "Instal aplikasi" atau "Tambahkan ke Layar Utama".');
+    }
   };
 
   const handleOpenInChrome = () => {
