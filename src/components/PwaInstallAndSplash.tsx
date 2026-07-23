@@ -286,13 +286,9 @@ export default function PwaInstallAndSplash({
             showToast('🎉 Selamat! Aplikasi CMS Gereja berhasil terpasang di HP/Laptop Anda.');
           } else {
             console.log('[PWA] Native install prompt dismissed by user.');
-            setShowInstallModal(true);
-            setShowManualGuide(true);
-            showToast('📌 Untuk memasang nanti: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
           }
         }).catch((err: any) => {
           console.warn('[PWA] Choice result error:', err);
-          showToast('📌 Petunjuk: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
         }).finally(() => {
           setIsInstalling(false);
           setDeferredPrompt(null);
@@ -301,28 +297,27 @@ export default function PwaInstallAndSplash({
       } catch (err) {
         console.warn('[PWA] Synchronous prompt trigger caught error:', err);
         setIsInstalling(false);
-        setShowInstallModal(true);
-        setShowManualGuide(true);
-        showToast('📌 Petunjuk: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
       }
       return;
     }
 
-    // 5. IF PROMPT IS NOT YET READY IN CHROME (Service Worker registering or criteria pending)
+    // 5. IF PROMPT IS NOT YET READY IN CHROME (Service Worker registering)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     }
 
-    setShowInstallModal(true);
-    setShowManualGuide(true);
-
-    if (deviceInfo.isDesktop) {
-      showToast('📌 CARA INSTAL DI LAPTOP/PC: Klik ikon [ ⬇️ / ⊕ ] di bilah alamat atas browser, atau Menu Tiga Titik (⋮) -> pilih "Instal CMS Gereja...".');
-    } else if (deviceInfo.isIos) {
-      showToast('📱 CARA INSTAL DI IPHONE: Buka di Safari -> Ketuk Bagikan / Share (📤) -> "Tambahkan ke Layar Utama".');
-    } else {
-      showToast('📱 CARA INSTAL DI HP ANDROID: Ketuk Menu Tiga Titik (⋮) di sudut kanan atas Chrome -> pilih "Instal aplikasi" atau "Tambahkan ke Layar Utama".');
-    }
+    // Attempt short retry if window.deferredPrompt arrives shortly after click
+    setIsInstalling(true);
+    showToast('⏳ Memproses instalasi otomatis ke HP Anda...');
+    setTimeout(() => {
+      setIsInstalling(false);
+      const retryPrompt = (window as any).deferredPrompt || deferredPrompt;
+      if (retryPrompt && typeof retryPrompt.prompt === 'function') {
+        try {
+          retryPrompt.prompt();
+        } catch (e) {}
+      }
+    }, 600);
   };
 
   const handleOpenInChrome = () => {
