@@ -208,22 +208,24 @@ export default function PwaInstallAndSplash({
     const isAutoInstall = urlParams.get('auto_install') === 'true';
 
     if (isAutoInstall && window.self === window.top) {
-      // Show the install modal right away so the user has the giant 1-click install button in front of them
       setShowInstallModal(true);
       setShowInstallBanner(true);
+      showToast('⚡ Ketuk "INSTAL APLIKASI SEKARANG" untuk memasang langsung ke HP Anda!');
 
-      const checkAndTrigger = () => {
+      const handleAutoTouch = () => {
         const promptEvent = (window as any).deferredPrompt || deferredPrompt;
         if (promptEvent && typeof promptEvent.prompt === 'function') {
-          try {
-            console.log('[PWA] auto_install detected with captured prompt!');
-          } catch (e) {
-            console.warn('[PWA] Auto prompt check:', e);
-          }
+          handleInstallClick();
         }
       };
 
-      checkAndTrigger();
+      window.addEventListener('pointerdown', handleAutoTouch, { once: true });
+      window.addEventListener('click', handleAutoTouch, { once: true });
+
+      return () => {
+        window.removeEventListener('pointerdown', handleAutoTouch);
+        window.removeEventListener('click', handleAutoTouch);
+      };
     }
   }, [deferredPrompt]);
 
@@ -264,7 +266,7 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 4. CAPTURING PROMPT SYNCHRONOUSLY FROM WINDOW OR STATE
+    // 4. CAPTURING PROMPT SYNCHRONOUSLY FROM WINDOW OR STATE (MUST BE SYNCHRONOUS IN USER GESTURE)
     const promptEvent = deferredPrompt || (window as any).deferredPrompt;
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
@@ -286,6 +288,7 @@ export default function PwaInstallAndSplash({
             showToast('🎉 Selamat! Aplikasi CMS Gereja berhasil terpasang di HP/Laptop Anda.');
           } else {
             console.log('[PWA] Native install prompt dismissed by user.');
+            showToast('📌 Instalasi dibatalkan. Anda dapat mengetuk tombol Instal kapan saja.');
           }
         }).catch((err: any) => {
           console.warn('[PWA] Choice result error:', err);
@@ -301,23 +304,13 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 5. IF PROMPT IS NOT YET READY IN CHROME (Service Worker registering)
+    // 5. IF PROMPT IS NOT YET CAPTURED OR STILL LOADING IN CHROME
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
     }
 
-    // Attempt short retry if window.deferredPrompt arrives shortly after click
-    setIsInstalling(true);
-    showToast('⏳ Memproses instalasi otomatis ke HP Anda...');
-    setTimeout(() => {
-      setIsInstalling(false);
-      const retryPrompt = (window as any).deferredPrompt || deferredPrompt;
-      if (retryPrompt && typeof retryPrompt.prompt === 'function') {
-        try {
-          retryPrompt.prompt();
-        } catch (e) {}
-      }
-    }, 600);
+    setShowInstallModal(true);
+    showToast('📱 Membuka jendela konfirmasi instalasi. Ketuk "INSTAL APLIKASI SEKARANG" untuk melanjutkan.');
   };
 
   const handleOpenInChrome = () => {
