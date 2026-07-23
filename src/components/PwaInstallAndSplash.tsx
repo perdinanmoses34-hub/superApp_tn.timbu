@@ -199,40 +199,28 @@ export default function PwaInstallAndSplash({
     const urlParams = new URLSearchParams(window.location.search);
     const isAutoInstall = urlParams.get('auto_install') === 'true';
 
-    const executePrompt = async (evt: any) => {
-      if (evt && typeof evt.prompt === 'function') {
-        try {
-          console.log('[PWA] Executing auto_install 1-click native prompt...');
-          await evt.prompt();
-        } catch (e) {
-          console.warn('[PWA] Auto prompt execution warning:', e);
-        }
-      }
-    };
-
     if (isAutoInstall && window.self === window.top) {
-      const existingPrompt = deferredPrompt || (window as any).deferredPrompt;
-      if (existingPrompt) {
-        executePrompt(existingPrompt);
-      }
+      // Show the install modal right away so the user has the giant 1-click install button in front of them
+      setShowInstallModal(true);
+      setShowInstallBanner(true);
 
-      // Intercept early prompt capture for 1-click popup
-      const originalHandler = (window as any).onPwaPromptCaptured;
-      (window as any).onPwaPromptCaptured = (e: any) => {
-        if (typeof originalHandler === 'function') originalHandler(e);
-        executePrompt(e);
+      const checkAndTrigger = () => {
+        const promptEvent = (window as any).deferredPrompt || deferredPrompt;
+        if (promptEvent && typeof promptEvent.prompt === 'function') {
+          try {
+            console.log('[PWA] auto_install detected with captured prompt!');
+          } catch (e) {
+            console.warn('[PWA] Auto prompt check:', e);
+          }
+        }
       };
 
-      const timer = setTimeout(() => {
-        const latePrompt = (window as any).deferredPrompt || deferredPrompt;
-        if (latePrompt) executePrompt(latePrompt);
-      }, 600);
-      return () => clearTimeout(timer);
+      checkAndTrigger();
     }
   }, [deferredPrompt]);
 
-  const handleInstallClick = async () => {
-    // 1. Check if app is already running in standalone mode
+  const handleInstallClick = () => {
+    // 1. Check if app is already running in standalone PWA mode
     const isAlreadyInstalled =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true ||
@@ -247,20 +235,27 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 2. If running inside an iFrame (e.g. AI Studio preview mode), open in a new tab where browser PWA prompts are fully supported
+    // 2. If running inside an iFrame (e.g. AI Studio preview mode), open in a new top window where browser PWA prompts are fully supported
     if (window.self !== window.top) {
-      const currentUrl = window.location.href;
-      const targetUrl = currentUrl.includes('auto_install=true')
-        ? currentUrl
-        : currentUrl + (currentUrl.includes('?') ? '&' : '?') + 'auto_install=true';
-      
-      const link = document.createElement('a');
-      link.href = targetUrl;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const originUrl = window.location.href.split('?')[0];
+      const targetUrl = `${originUrl}?auto_install=true`;
+
+      try {
+        if (window.top) {
+          window.top.location.href = targetUrl;
+          return;
+        }
+      } catch (e) {
+        // Cross-origin fallback
+      }
+
+      const a = document.createElement('a');
+      a.href = targetUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
 
@@ -270,53 +265,78 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 4. Try capturing prompt from window or state
-    let promptEvent = deferredPrompt || (window as any).deferredPrompt;
-
-    // Retry brief wait to catch initial beforeinstallprompt
-    if (!promptEvent) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      promptEvent = (window as any).deferredPrompt || deferredPrompt;
-    }
+    // 4. Capturing prompt SYNCHRONOUSLY from window or state (CRITICAL: NO ASYNC/AWAIT DELAYS BEFORE PROMPT CALL!)
+    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
       try {
         setIsInstalling(true);
-        console.log('[PWA] Executing native install prompt dialog...');
-        await promptEvent.prompt();
-        const choiceResult = await promptEvent.userChoice;
-        if (choiceResult && choiceResult.outcome === 'accepted') {
-          console.log('[PWA] Native install prompt ACCEPTED by user!');
-          setIsStandalone(true);
-          setShowInstallBanner(false);
-          setShowInstallModal(false);
-          setShowGuideModal(false);
-          setShowManualGuide(false);
-        } else {
-          console.log('[PWA] Native install prompt dismissed by user.');
-          setShowInstallModal(true);
-          setShowManualGuide(true);
-        }
+        console.log('[PWA] Executing synchronous native install prompt dialog...');
+        
+        // Call prompt() IMMEDIATELY inside the user click tick!
+        promptEvent.prompt();
+
+        promptEvent.userChoice.then((choiceResult: any) => {
+          if (choiceResult && choiceResult.outcome === 'accepted') {
+            console.log('[PWA] Native install prompt ACCEPTED by user!');
+            setIsStandalone(true);
+            setShowInstallBanner(false);
+            setShowInstallModal(false);
+            setShowGuideModal(false);
+            setShowManualGuide(false);
+            alert('🎉 Selamat! Aplikasi CMS Gereja berhasil terpasang di HP/Laptop Anda.');
+          } else {
+            console.log('[PWA] Native install prompt dismissed by user.');
+            setShowInstallModal(true);
+            setShowManualGuide(true);
+          }
+        }).catch((err: any) => {
+          console.warn('[PWA] Choice result error:', err);
+        }).finally(() => {
+          setIsInstalling(false);
+          setDeferredPrompt(null);
+          (window as any).deferredPrompt = null;
+        });
       } catch (err) {
-        console.warn('[PWA] Native prompt trigger caught error:', err);
+        console.warn('[PWA] Synchronous prompt trigger caught error:', err);
+        setIsInstalling(false);
         setShowInstallModal(true);
         setShowManualGuide(true);
-      } finally {
-        setIsInstalling(false);
-        setDeferredPrompt(null);
-        (window as any).deferredPrompt = null;
       }
+      return;
+    }
+
+    // 5. If prompt is not available yet in browser (or Chrome hasn't triggered beforeinstallprompt)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
+    }
+
+    setShowInstallModal(true);
+    setShowManualGuide(true);
+
+    // Provide IMMEDIATE, DIRECT, ACTIVE FEEDBACK so the user knows EXACTLY what action to take!
+    if (deviceInfo.isDesktop) {
+      alert(
+        '📌 LANGKAH MEMASANG DI LAPTOP / PC:\n\n' +
+        '1. Lihat di sebelah kanan Address Bar (Bilah Alamat URL Atas Browser Anda).\n' +
+        '2. Klik ikon [ ⬇️ ] atau [ ⊕ ] "Instal CMS Gereja".\n' +
+        '3. Atau klik Menu Tiga Titik (⋮) di kanan atas -> pilih "Instal CMS Gereja..." atau "Simpan dan bagikan -> Instal situs sebagai aplikasi".'
+      );
+    } else if (deviceInfo.isIos) {
+      alert(
+        '📱 LANGKAH MEMASANG DI IPHONE / IPAD:\n\n' +
+        '1. Pastikan Anda membuka halaman ini di browser Safari.\n' +
+        '2. Ketuk tombol Bagikan / Share (📤) di bagian bawah layar.\n' +
+        '3. Gulir ke bawah lalu pilih "Tambahkan ke Layar Utama" (Add to Home Screen).\n' +
+        '4. Ketuk "Tambah" di kanan atas.'
+      );
     } else {
-      // 5. If prompt is not available yet, attempt Service Worker re-register and show installation modal with clear instructions
-      if ('serviceWorker' in navigator) {
-        try {
-          await navigator.serviceWorker.register('./sw.js', { scope: './' });
-        } catch (e) {
-          console.warn('[PWA] SW re-register warning:', e);
-        }
-      }
-      setShowInstallModal(true);
-      setShowManualGuide(true);
+      alert(
+        '📱 LANGKAH MEMASANG DI HP ANDROID:\n\n' +
+        '1. Ketuk tombol Menu Tiga Titik (⋮) di sudut kanan atas browser Chrome HP Anda.\n' +
+        '2. Pilih menu "Instal aplikasi" atau "Tambahkan ke Layar Utama".\n' +
+        '3. Ketuk "Instal" — Ikon aplikasi akan langsung terpasang di layar utama HP Anda!'
+      );
     }
   };
 
