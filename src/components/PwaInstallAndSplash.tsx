@@ -44,6 +44,14 @@ export default function PwaInstallAndSplash({
   >('android');
   const [isInstalling, setIsInstalling] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((prev) => (prev === msg ? null : prev));
+    }, 7000);
+  };
 
   // Device & Browser Detection State
   const [deviceInfo, setDeviceInfo] = useState({
@@ -231,22 +239,20 @@ export default function PwaInstallAndSplash({
       setShowInstallBanner(false);
       setShowInstallModal(false);
       setShowManualGuide(false);
-      alert('✓ Aplikasi CMS Gereja telah terpasang di HP / Laptop Anda! Anda dapat membukanya langsung dari Layar Utama (Home Screen) atau Start Menu.');
+      showToast('✓ Aplikasi CMS Gereja telah terpasang di HP / Laptop Anda! Anda dapat membukanya langsung dari Layar Utama (Home Screen) atau Start Menu.');
       return;
     }
 
     // 2. IF RUNNING INSIDE AI STUDIO IFRAME (window.self !== window.top):
     // Chrome strictly blocks PWA prompts inside cross-origin iframes.
-    // We MUST open the URL directly in a full browser tab via window.open() so Chrome can trigger PWA installation!
     if (window.self !== window.top) {
       const originUrl = window.location.href.split('?')[0];
       const targetUrl = `${originUrl}?auto_install=true`;
       
-      // Direct window.open in user gesture thread avoids popup blocker
+      showToast('🔗 Membuka aplikasi di tab baru browser Anda untuk menginstal secara langsung...');
       const newWin = window.open(targetUrl, '_blank');
       if (!newWin) {
-        // Fallback if popup blocker intercepted window.open
-        alert('👉 Silakan ketuk "Salin Link Aplikasi" lalu buka di Chrome HP Anda untuk menginstal secara langsung!');
+        showToast('👉 Silakan ketuk "Salin Link Aplikasi" lalu buka di Chrome HP Anda untuk menginstal secara langsung!');
         setShowInstallModal(true);
       }
       return;
@@ -258,7 +264,7 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // 4. CAPTURING PROMPT SYNCHRONOUSLY FROM WINDOW OR STATE (NO ASYNC/AWAIT DELAYS!)
+    // 4. CAPTURING PROMPT SYNCHRONOUSLY FROM WINDOW OR STATE
     const promptEvent = deferredPrompt || (window as any).deferredPrompt;
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
@@ -277,14 +283,16 @@ export default function PwaInstallAndSplash({
             setShowInstallModal(false);
             setShowGuideModal(false);
             setShowManualGuide(false);
-            alert('🎉 Selamat! Aplikasi CMS Gereja berhasil terpasang di HP/Laptop Anda.');
+            showToast('🎉 Selamat! Aplikasi CMS Gereja berhasil terpasang di HP/Laptop Anda.');
           } else {
             console.log('[PWA] Native install prompt dismissed by user.');
             setShowInstallModal(true);
             setShowManualGuide(true);
+            showToast('📌 Untuk memasang nanti: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
           }
         }).catch((err: any) => {
           console.warn('[PWA] Choice result error:', err);
+          showToast('📌 Petunjuk: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
         }).finally(() => {
           setIsInstalling(false);
           setDeferredPrompt(null);
@@ -295,6 +303,7 @@ export default function PwaInstallAndSplash({
         setIsInstalling(false);
         setShowInstallModal(true);
         setShowManualGuide(true);
+        showToast('📌 Petunjuk: Ketuk Menu Tiga Titik (⋮) di kanan atas Chrome -> pilih "Instal aplikasi".');
       }
       return;
     }
@@ -306,6 +315,14 @@ export default function PwaInstallAndSplash({
 
     setShowInstallModal(true);
     setShowManualGuide(true);
+
+    if (deviceInfo.isDesktop) {
+      showToast('📌 CARA INSTAL DI LAPTOP/PC: Klik ikon [ ⬇️ / ⊕ ] di bilah alamat atas browser, atau Menu Tiga Titik (⋮) -> pilih "Instal CMS Gereja...".');
+    } else if (deviceInfo.isIos) {
+      showToast('📱 CARA INSTAL DI IPHONE: Buka di Safari -> Ketuk Bagikan / Share (📤) -> "Tambahkan ke Layar Utama".');
+    } else {
+      showToast('📱 CARA INSTAL DI HP ANDROID: Ketuk Menu Tiga Titik (⋮) di sudut kanan atas Chrome -> pilih "Instal aplikasi" atau "Tambahkan ke Layar Utama".');
+    }
   };
 
   const handleOpenInChrome = () => {
@@ -327,6 +344,7 @@ export default function PwaInstallAndSplash({
         }
       } catch (err) {}
 
+      showToast('📱 MEMBUKA GOOGLE CHROME... Link web telah disalin! Buka Chrome di HP Anda lalu tempel (paste) link tersebut.');
       setShowInstallModal(true);
       setShowManualGuide(true);
     } else {
@@ -340,12 +358,12 @@ export default function PwaInstallAndSplash({
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(currentUrl);
-        alert('✓ Link web berhasil disalin!\n\nSilakan buka aplikasi Google Chrome di HP Anda, tempel (paste) link ini, lalu ketuk "Instal".');
+        showToast('📋 Link web berhasil disalin! Silakan buka aplikasi Google Chrome di HP Anda, tempel (paste) link ini, lalu pilih "Instal aplikasi".');
       } else {
-        alert(`Buka link ini di Google Chrome:\n${currentUrl}`);
+        showToast(`📋 Link web: ${currentUrl}`);
       }
     } catch (err) {
-      alert(`Buka link ini di Google Chrome:\n${currentUrl}`);
+      showToast(`📋 Link web: ${currentUrl}`);
     }
   };
 
@@ -1044,6 +1062,29 @@ export default function PwaInstallAndSplash({
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* 5. FLOATING ACTIVE TOAST NOTIFICATION OVERLAY */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-5 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[999] bg-slate-900/95 backdrop-blur-md border-2 border-amber-400 text-white p-4 rounded-2xl shadow-2xl flex items-start gap-3"
+          >
+            <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+            <div className="flex-1 text-xs leading-relaxed font-semibold text-slate-100 whitespace-pre-line">
+              {toastMessage}
+            </div>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="text-slate-400 hover:text-white p-1 cursor-pointer rounded-lg hover:bg-slate-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </>
