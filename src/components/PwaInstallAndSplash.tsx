@@ -228,26 +228,49 @@ export default function PwaInstallAndSplash({
       return;
     }
 
-    // Check if deferredPrompt is available directly or on window
-    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
+    // Check if app is already running in standalone mode
+    const isAlreadyInstalled =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true ||
+      document.referrer.includes('android-app://');
+
+    if (isAlreadyInstalled) {
+      setIsStandalone(true);
+      setShowInstallBanner(false);
+      setShowInstallModal(false);
+      setShowManualGuide(false);
+      alert('✓ Aplikasi sudah terpasang di HP / Laptop Anda! Anda dapat membukanya langsung dari Layar Utama (Home Screen) atau Start Menu.');
+      return;
+    }
+
+    // Try capturing prompt from window or state
+    let promptEvent = deferredPrompt || (window as any).deferredPrompt;
+
+    // Quick 250ms retry to catch fast initial prompt event
+    if (!promptEvent) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      promptEvent = (window as any).deferredPrompt || deferredPrompt;
+    }
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
       try {
         setIsInstalling(true);
+        console.log('[PWA] Executing 1-click native install prompt...');
         await promptEvent.prompt();
         const choiceResult = await promptEvent.userChoice;
         if (choiceResult && choiceResult.outcome === 'accepted') {
-          console.log('[PWA] Native install prompt accepted!');
+          console.log('[PWA] Native install prompt ACCEPTED by user!');
           setIsStandalone(true);
           setShowInstallBanner(false);
           setShowInstallModal(false);
           setShowGuideModal(false);
           setShowManualGuide(false);
         } else {
+          console.log('[PWA] Native install prompt dismissed by user.');
           setShowInstallModal(true);
         }
       } catch (err) {
-        console.warn('[PWA] Native prompt trigger failed or consumed:', err);
+        console.warn('[PWA] Native prompt trigger caught error:', err);
         setShowInstallModal(true);
       } finally {
         setIsInstalling(false);
@@ -260,7 +283,7 @@ export default function PwaInstallAndSplash({
         handleOpenInChrome();
         return;
       }
-      // Show direct install confirmation modal
+      // Show direct 1-click installation confirmation modal
       setShowInstallModal(true);
     }
   };
@@ -639,124 +662,33 @@ export default function PwaInstallAndSplash({
                   <div className="flex items-center justify-between font-black text-amber-300 text-[12px] uppercase tracking-wide">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                      Langkah Pasang di {deviceInfo.isDesktop ? 'Laptop/PC' : deviceInfo.isSamsung ? 'Samsung' : deviceInfo.isXiaomi ? 'Xiaomi / POCO' : deviceInfo.isIos ? 'iPhone / Safari' : deviceInfo.browserName}:
+                      Pemasangan Standalone Native 1-Klik:
                     </span>
-                    <span className="text-[10px] text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full font-mono">
+                    <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold">
                       PWA LIVE
                     </span>
                   </div>
 
-                  {deviceInfo.isDesktop ? (
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
-                      <li>
-                        Lihat ke <strong className="text-amber-300 font-bold">sebelah kanan Address Bar (Bilah Alamat URL)</strong> di bagian atas browser laptop Anda.
-                      </li>
-                      <li>
-                        Klik ikon <strong className="text-amber-300 font-bold">Instal [ ⬇️ / ⊕ ]</strong> di samping tombol Bookmark (Bintang).
-                      </li>
-                      <li>
-                        Atau klik menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di kanan atas → pilih <strong className="text-amber-300 font-bold">"Instal CMS Gereja..."</strong> atau <strong className="text-amber-300 font-bold">"Aplikasi -&gt; Instal situs ini"</strong>.
-                      </li>
-                      <li>
-                        Klik <strong className="text-amber-300 font-bold">"Instal"</strong> — Aplikasi langsung muncul di Desktop & Start Menu!
-                      </li>
-                    </ol>
-                  ) : deviceInfo.isIos ? (
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
-                      <li>
-                        Buka website ini di browser <strong className="text-amber-300 font-bold">Safari</strong> di iPhone/iPad Anda.
-                      </li>
-                      <li>
-                        Ketuk tombol <strong className="text-amber-300 font-bold">Bagikan / Share (📤)</strong> di bagian bawah layar.
-                      </li>
-                      <li>
-                        Gulir ke bawah lalu pilih menu <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama" (Add to Home Screen)</strong>.
-                      </li>
-                      <li>
-                        Ketuk <strong className="text-amber-300 font-bold">"Tambah"</strong> di kanan atas.
-                      </li>
-                    </ol>
-                  ) : deviceInfo.isSamsung ? (
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
-                      <li>
-                        Ketuk menu <strong className="text-amber-300 font-bold">Garis Tiga (≡)</strong> di kanan bawah layar Samsung Anda.
-                      </li>
-                      <li>
-                        Ketuk ikon <strong className="text-amber-300 font-bold">+ Tambah Halaman Ke</strong> (Add page to).
-                      </li>
-                      <li>
-                        Pilih <strong className="text-amber-300 font-bold">"Layar Utama"</strong> (Home screen) atau <strong className="text-amber-300 font-bold">"Aplikasi Web"</strong>.
-                      </li>
-                      <li>
-                        Ketuk <strong className="text-amber-300 font-bold">"Instal / Tambah"</strong>.
-                      </li>
-                    </ol>
-                  ) : deviceInfo.isXiaomi ? (
-                    <div className="space-y-2">
-                      <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
-                        <li>
-                          Ketuk menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di sudut kanan atas Chrome/Browser.
-                        </li>
-                        <li>
-                          Pilih <strong className="text-amber-300 font-bold">"Instal aplikasi"</strong> atau <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama"</strong>.
-                        </li>
-                        <li>
-                          Ketuk <strong className="text-amber-300 font-bold">"Instal"</strong>.
-                        </li>
-                      </ol>
-                      <div className="p-2 bg-slate-950/80 rounded-xl text-[10px] text-amber-200 font-normal border border-amber-500/20">
-                        💡 <strong>HP Xiaomi/POCO:</strong> Jika popup terhalang, buka <em>Pengaturan HP -&gt; Aplikasi -&gt; Chrome -&gt; Perizinan Lainnya -&gt; Izinkan 'Pintasan Layar Utama'</em>.
-                      </div>
-                    </div>
-                  ) : (
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
-                      <li>
-                        Ketuk menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di kanan atas browser HP Anda.
-                      </li>
-                      <li>
-                        Pilih menu <strong className="text-amber-300 font-bold">"Instal aplikasi"</strong> atau <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama"</strong>.
-                      </li>
-                      <li>
-                        Ketuk <strong className="text-amber-300 font-bold">"Instal"</strong> — Ikon aplikasi langsung terpasang!
-                      </li>
-                    </ol>
-                  )}
+                  <p className="text-[11px] text-slate-200 font-medium leading-relaxed">
+                    Aplikasi ini dirancang untuk dapat terpasang langsung di {deviceInfo.isDesktop ? 'Laptop/PC (Windows/Mac)' : 'HP Android & iOS'} layaknya aplikasi toko resmi. Tampilan otomatis fullscreen tanpa bar link URL!
+                  </p>
                 </motion.div>
               )}
 
               <div className="pt-2 flex flex-col gap-2">
                 {/* Main 1-Click Install Action Button */}
                 <button
-                  onClick={() => {
-                    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
-                    if (promptEvent && typeof promptEvent.prompt === 'function') {
-                      handleInstallClick();
-                    } else if (deviceInfo.isInIframe) {
-                      window.open(window.location.href, '_blank');
-                    } else if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
-                      handleOpenInChrome();
-                    } else {
-                      setShowInstallModal(false);
-                      if (deviceInfo.isDesktop) setActiveGuideTab('desktop');
-                      else if (deviceInfo.isIos) setActiveGuideTab('ios');
-                      else if (deviceInfo.isSamsung) setActiveGuideTab('samsung');
-                      else if (deviceInfo.isXiaomi) setActiveGuideTab('xiaomi');
-                      else setActiveGuideTab('android');
-                      setShowGuideModal(true);
-                    }
-                  }}
+                  onClick={handleInstallClick}
                   disabled={isInstalling}
-                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-sm rounded-2xl shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                  className="w-full py-4 bg-gradient-to-r from-amber-500 via-amber-400 to-amber-300 hover:from-amber-400 hover:to-amber-200 text-slate-950 font-black text-sm rounded-2xl shadow-2xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 border border-amber-200/50"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-5 h-5 text-slate-950 animate-bounce" />
                   <span>
                     {isInstalling
-                      ? 'Proses Memasang...'
-                      : (deferredPrompt || (window as any).deferredPrompt)
-                      ? '⚡ PASANG SEKARANG (1-KLIK PROMPT)'
+                      ? 'Proses Memasang Native...'
                       : deviceInfo.isInIframe
-                      ? '🔗 BUKA DI TAB BARU UNTUK INSTAL'
-                      : '📖 BUKA PETUNJUK BERGAMBAR DEVICE SAYA'}
+                      ? '🔗 BUKA TAB BARU UNTUK INSTAL 1-KLIK'
+                      : '⚡ INSTAL APLIKASI SEKARANG (1-KLIK)'}
                   </span>
                 </button>
 
