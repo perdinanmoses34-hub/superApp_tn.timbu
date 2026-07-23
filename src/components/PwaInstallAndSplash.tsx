@@ -198,37 +198,41 @@ export default function PwaInstallAndSplash({
     if (typeof window === 'undefined') return;
     const urlParams = new URLSearchParams(window.location.search);
     const isAutoInstall = urlParams.get('auto_install') === 'true';
-    if (isAutoInstall && window.self === window.top) {
-      const triggerAutoPrompt = async () => {
-        const promptEvent = deferredPrompt || (window as any).deferredPrompt;
-        if (promptEvent && typeof promptEvent.prompt === 'function') {
-          try {
-            console.log('[PWA] Auto triggering native install prompt...');
-            await promptEvent.prompt();
-          } catch (e) {
-            console.warn('[PWA] Auto prompt trigger caught:', e);
-          }
+
+    const executePrompt = async (evt: any) => {
+      if (evt && typeof evt.prompt === 'function') {
+        try {
+          console.log('[PWA] Executing auto_install 1-click native prompt...');
+          await evt.prompt();
+        } catch (e) {
+          console.warn('[PWA] Auto prompt execution warning:', e);
         }
+      }
+    };
+
+    if (isAutoInstall && window.self === window.top) {
+      const existingPrompt = deferredPrompt || (window as any).deferredPrompt;
+      if (existingPrompt) {
+        executePrompt(existingPrompt);
+      }
+
+      // Intercept early prompt capture for 1-click popup
+      const originalHandler = (window as any).onPwaPromptCaptured;
+      (window as any).onPwaPromptCaptured = (e: any) => {
+        if (typeof originalHandler === 'function') originalHandler(e);
+        executePrompt(e);
       };
-      
-      triggerAutoPrompt();
-      const timer = setTimeout(triggerAutoPrompt, 800);
+
+      const timer = setTimeout(() => {
+        const latePrompt = (window as any).deferredPrompt || deferredPrompt;
+        if (latePrompt) executePrompt(latePrompt);
+      }, 600);
       return () => clearTimeout(timer);
     }
   }, [deferredPrompt]);
 
   const handleInstallClick = async () => {
-    // 1. If running inside an iFrame (e.g. AI Studio preview mode), launch in a new tab with auto_install parameter so native PWA triggers work instantly
-    if (window.self !== window.top) {
-      const currentUrl = window.location.href;
-      const targetUrl = currentUrl.includes('auto_install=true')
-        ? currentUrl
-        : currentUrl + (currentUrl.includes('?') ? '&' : '?') + 'auto_install=true';
-      window.open(targetUrl, '_blank');
-      return;
-    }
-
-    // Check if app is already running in standalone mode
+    // 1. Check if app is already running in standalone mode
     const isAlreadyInstalled =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true ||
@@ -239,23 +243,46 @@ export default function PwaInstallAndSplash({
       setShowInstallBanner(false);
       setShowInstallModal(false);
       setShowManualGuide(false);
-      alert('✓ Aplikasi sudah terpasang di HP / Laptop Anda! Anda dapat membukanya langsung dari Layar Utama (Home Screen) atau Start Menu.');
+      alert('✓ Aplikasi CMS Gereja telah terpasang di HP / Laptop Anda! Anda dapat membukanya langsung dari Layar Utama (Home Screen) atau Start Menu.');
       return;
     }
 
-    // Try capturing prompt from window or state
+    // 2. If running inside an iFrame (e.g. AI Studio preview mode), open in a new tab where browser PWA prompts are fully supported
+    if (window.self !== window.top) {
+      const currentUrl = window.location.href;
+      const targetUrl = currentUrl.includes('auto_install=true')
+        ? currentUrl
+        : currentUrl + (currentUrl.includes('?') ? '&' : '?') + 'auto_install=true';
+      
+      const link = document.createElement('a');
+      link.href = targetUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    // 3. If in-app browser on Android (e.g. WhatsApp / IG / FB), redirect to Chrome directly
+    if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
+      handleOpenInChrome();
+      return;
+    }
+
+    // 4. Try capturing prompt from window or state
     let promptEvent = deferredPrompt || (window as any).deferredPrompt;
 
-    // Quick 250ms retry to catch fast initial prompt event
+    // Retry brief wait to catch initial beforeinstallprompt
     if (!promptEvent) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 300));
       promptEvent = (window as any).deferredPrompt || deferredPrompt;
     }
 
     if (promptEvent && typeof promptEvent.prompt === 'function') {
       try {
         setIsInstalling(true);
-        console.log('[PWA] Executing 1-click native install prompt...');
+        console.log('[PWA] Executing native install prompt dialog...');
         await promptEvent.prompt();
         const choiceResult = await promptEvent.userChoice;
         if (choiceResult && choiceResult.outcome === 'accepted') {
@@ -268,23 +295,28 @@ export default function PwaInstallAndSplash({
         } else {
           console.log('[PWA] Native install prompt dismissed by user.');
           setShowInstallModal(true);
+          setShowManualGuide(true);
         }
       } catch (err) {
         console.warn('[PWA] Native prompt trigger caught error:', err);
         setShowInstallModal(true);
+        setShowManualGuide(true);
       } finally {
         setIsInstalling(false);
         setDeferredPrompt(null);
         (window as any).deferredPrompt = null;
       }
     } else {
-      // If in-app browser on Android (e.g. WhatsApp / IG / FB), redirect to Chrome directly
-      if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
-        handleOpenInChrome();
-        return;
+      // 5. If prompt is not available yet, attempt Service Worker re-register and show installation modal with clear instructions
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('./sw.js', { scope: './' });
+        } catch (e) {
+          console.warn('[PWA] SW re-register warning:', e);
+        }
       }
-      // Show direct 1-click installation confirmation modal
       setShowInstallModal(true);
+      setShowManualGuide(true);
     }
   };
 
@@ -657,21 +689,49 @@ export default function PwaInstallAndSplash({
                 <motion.div
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-amber-500/15 border-2 border-amber-400/60 rounded-2xl p-3.5 space-y-2 text-xs relative"
+                  className="bg-amber-500/15 border-2 border-amber-400/60 rounded-2xl p-3.5 space-y-2.5 text-xs relative"
                 >
                   <div className="flex items-center justify-between font-black text-amber-300 text-[12px] uppercase tracking-wide">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                      Pemasangan Standalone Native 1-Klik:
+                      Langkah Pasang di {deviceInfo.isDesktop ? 'Laptop/PC' : deviceInfo.isIos ? 'iPhone (Safari)' : deviceInfo.isSamsung ? 'Samsung' : deviceInfo.isXiaomi ? 'Xiaomi / POCO' : 'HP Android'}:
                     </span>
                     <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full font-mono font-bold">
                       PWA LIVE
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-200 font-medium leading-relaxed">
-                    Aplikasi ini dirancang untuk dapat terpasang langsung di {deviceInfo.isDesktop ? 'Laptop/PC (Windows/Mac)' : 'HP Android & iOS'} layaknya aplikasi toko resmi. Tampilan otomatis fullscreen tanpa bar link URL!
-                  </p>
+                  {deviceInfo.isDesktop ? (
+                    <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-200 font-medium leading-snug">
+                      <li>
+                        Klik tombol <strong className="text-amber-300">⚡ INSTAL APLIKASI SEKARANG</strong> di bawah.
+                      </li>
+                      <li>
+                        Atau lihat di <strong className="text-amber-300">sebelah kanan Address Bar (Atas Browser)</strong> -&gt; Klik ikon <strong className="text-amber-300">[ ⬇️ / ⊕ ]</strong> atau Menu Tiga Titik (⋮) -&gt; pilih <strong className="text-amber-300">"Instal CMS Gereja..."</strong>.
+                      </li>
+                    </ol>
+                  ) : deviceInfo.isIos ? (
+                    <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-200 font-medium leading-snug">
+                      <li>
+                        Buka di browser <strong className="text-amber-300">Safari</strong> iPhone/iPad Anda.
+                      </li>
+                      <li>
+                        Ketuk tombol <strong className="text-amber-300">Bagikan / Share (📤)</strong> di bawah.
+                      </li>
+                      <li>
+                        Pilih <strong className="text-amber-300">"Tambahkan ke Layar Utama" (Add to Home Screen)</strong> -&gt; Ketuk <strong className="text-amber-300">Tambah</strong>.
+                      </li>
+                    </ol>
+                  ) : (
+                    <ol className="list-decimal pl-4 space-y-1 text-[11px] text-slate-200 font-medium leading-snug">
+                      <li>
+                        Ketuk tombol <strong className="text-amber-300">⚡ INSTAL APLIKASI SEKARANG</strong> di bawah.
+                      </li>
+                      <li>
+                        Jika popup belum muncul: Ketuk menu <strong className="text-amber-300">Tiga Titik (⋮)</strong> di kanan atas Chrome -&gt; pilih <strong className="text-amber-300">"Instal aplikasi"</strong> atau <strong className="text-amber-300">"Tambahkan ke Layar Utama"</strong>.
+                      </li>
+                    </ol>
+                  )}
                 </motion.div>
               )}
 
