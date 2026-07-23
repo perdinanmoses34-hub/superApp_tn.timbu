@@ -73,7 +73,7 @@ export default function PwaInstallAndSplash({
     const isIos = /ipad|iphone|ipod/i.test(ua) && !(window as any).MSStream;
     const isMobile = isAndroid || isIos || /mobile|tablet/i.test(ua);
     const isDesktop = !isMobile;
-    const isInAppBrowser = /fban|fbav|instagram|line|whatsapp|micromessenger|snapchat|tiktok|twitter|wv/i.test(ua) || (isAndroid && !/chrome/i.test(ua));
+    const isInAppBrowser = /fban|fbav|instagram|line|whatsapp|micromessenger|snapchat|tiktok|twitter/i.test(ua);
     const isInIframe = window.self !== window.top;
 
     const isXiaomi = /xiaomi|poco|redmi|miui|hyperos/i.test(ua);
@@ -306,30 +306,6 @@ export default function PwaInstallAndSplash({
 
     setShowInstallModal(true);
     setShowManualGuide(true);
-
-    if (deviceInfo.isDesktop) {
-      alert(
-        '📌 CARA MEMASANG DI LAPTOP / PC:\n\n' +
-        '1. Lihat di sebelah kanan Address Bar (Bilah Alamat URL Atas Browser Anda).\n' +
-        '2. Klik ikon [ ⬇️ ] atau [ ⊕ ] "Instal CMS Gereja".\n' +
-        '3. Atau klik Menu Tiga Titik (⋮) di kanan atas -> pilih "Instal CMS Gereja...".'
-      );
-    } else if (deviceInfo.isIos) {
-      alert(
-        '📱 CARA MEMASANG DI IPHONE / IPAD:\n\n' +
-        '1. Buka halaman ini di browser Safari.\n' +
-        '2. Ketuk tombol Bagikan / Share (📤) di bagian bawah layar.\n' +
-        '3. Pilih "Tambahkan ke Layar Utama" (Add to Home Screen).\n' +
-        '4. Ketuk "Tambah" di kanan atas.'
-      );
-    } else {
-      alert(
-        '📱 CARA MEMASANG DI HP ANDROID:\n\n' +
-        '1. Ketuk tombol Menu Tiga Titik (⋮) di sudut kanan atas browser Chrome HP Anda.\n' +
-        '2. Pilih menu "Instal aplikasi" atau "Tambahkan ke Layar Utama".\n' +
-        '3. Ketuk "Instal" — Aplikasi akan langsung terpasang di layar HP Anda!'
-      );
-    }
   };
 
   const handleOpenInChrome = () => {
@@ -351,15 +327,8 @@ export default function PwaInstallAndSplash({
         }
       } catch (err) {}
 
-      setTimeout(() => {
-        alert(
-          '📱 CARA MEMASANG DARI WHATSAPP:\n\n' +
-          'Link web telah disalin otomatis!\n\n' +
-          '1. Buka aplikasi Google Chrome di HP Android Anda.\n' +
-          '2. Tempel (Paste) link di bilah alamat atas browser Chrome.\n' +
-          '3. Ketuk "Instal" / Menu Tiga Titik (⋮) -> "Instal aplikasi" / "Tambahkan ke Layar Utama".'
-        );
-      }, 800);
+      setShowInstallModal(true);
+      setShowManualGuide(true);
     } else {
       setShowInstallModal(true);
       setShowManualGuide(true);
