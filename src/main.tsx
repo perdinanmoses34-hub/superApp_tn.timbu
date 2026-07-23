@@ -3,10 +3,11 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Register PWA Service Worker immediately to support offline caching and automatic Android/iOS installation prompts
+// Register PWA Service Worker using relative BASE_URL to support subpath hosting on GitHub Pages
 if ('serviceWorker' in navigator) {
   const registerSW = () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+    navigator.serviceWorker.register(swUrl, { scope: import.meta.env.BASE_URL })
       .then((registration) => {
         console.log('[PWA] Service Worker registered successfully with scope:', registration.scope);
       })
