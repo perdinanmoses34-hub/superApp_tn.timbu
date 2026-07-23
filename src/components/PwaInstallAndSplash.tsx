@@ -1,25 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, Smartphone, CheckCircle2, X, Sparkles, Chrome, Compass, Info, HelpCircle, ExternalLink, RefreshCw, Share2, Globe } from 'lucide-react';
+import {
+  Download,
+  Smartphone,
+  CheckCircle2,
+  X,
+  Sparkles,
+  Chrome,
+  Compass,
+  Info,
+  HelpCircle,
+  ExternalLink,
+  Share2,
+  Globe,
+  Monitor,
+  Laptop,
+} from 'lucide-react';
 
 interface PwaInstallAndSplashProps {
   churchName?: string;
   logoUrl?: string;
 }
 
-export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHURCH', logoUrl }: PwaInstallAndSplashProps) {
+export default function PwaInstallAndSplash({
+  churchName = 'SYSTEM MANAJEMEN CHURCH',
+  logoUrl,
+}: PwaInstallAndSplashProps) {
   // Splash Screen States
   const [showSplash, setShowSplash] = useState(true);
   const [splashProgress, setSplashProgress] = useState(10);
 
   // PWA Install States
-  const [deferredPrompt, setDeferredPrompt] = useState<any>((window as any).deferredPrompt || null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(
+    typeof window !== 'undefined' ? (window as any).deferredPrompt || null : null
+  );
   const [showInstallBanner, setShowInstallBanner] = useState(true);
   const [isBannerMinimized, setIsBannerMinimized] = useState(false);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showManualGuide, setShowManualGuide] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
-  const [activeGuideTab, setActiveGuideTab] = useState<'android' | 'samsung' | 'xiaomi' | 'ios'>('android');
+  const [activeGuideTab, setActiveGuideTab] = useState<
+    'desktop' | 'android' | 'samsung' | 'xiaomi' | 'ios'
+  >('android');
   const [isInstalling, setIsInstalling] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
@@ -28,6 +50,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
     isAndroid: false,
     isIos: false,
     isMobile: false,
+    isDesktop: false,
     isInAppBrowser: false,
     isInIframe: false,
     isXiaomi: false,
@@ -49,6 +72,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
     const isAndroid = /android/i.test(ua);
     const isIos = /ipad|iphone|ipod/i.test(ua) && !(window as any).MSStream;
     const isMobile = isAndroid || isIos || /mobile|tablet/i.test(ua);
+    const isDesktop = !isMobile;
     const isInAppBrowser = /fban|fbav|instagram|line|whatsapp|micromessenger|snapchat|tiktok|twitter/i.test(ua);
     const isInIframe = window.self !== window.top;
 
@@ -60,14 +84,27 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
     if (/samsungbrowser/i.test(ua)) browserName = 'Samsung Internet';
     else if (/miuibrowser/i.test(ua)) browserName = 'Xiaomi Browser';
     else if (/ucbrowser/i.test(ua)) browserName = 'UC Browser';
+    else if (/edg/i.test(ua)) browserName = 'Microsoft Edge';
     else if (/opera|opr/i.test(ua)) browserName = 'Opera';
     else if (/firefox|fxios/i.test(ua)) browserName = 'Firefox';
     else if (/crios|chrome/i.test(ua)) browserName = 'Chrome';
     else if (/safari/i.test(ua)) browserName = 'Safari';
 
-    setDeviceInfo({ isAndroid, isIos, isMobile, isInAppBrowser, isInIframe, isXiaomi, isSamsung, isOppoVivo, browserName });
-    
-    if (isIos) setActiveGuideTab('ios');
+    setDeviceInfo({
+      isAndroid,
+      isIos,
+      isMobile,
+      isDesktop,
+      isInAppBrowser,
+      isInIframe,
+      isXiaomi,
+      isSamsung,
+      isOppoVivo,
+      browserName,
+    });
+
+    if (isDesktop) setActiveGuideTab('desktop');
+    else if (isIos) setActiveGuideTab('ios');
     else if (isXiaomi) setActiveGuideTab('xiaomi');
     else if (isSamsung) setActiveGuideTab('samsung');
     else setActiveGuideTab('android');
@@ -89,13 +126,12 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
       });
     }, 150);
 
-    // Function to decide whether to show floating install banner
     const checkAndShowBanner = () => {
       if (isStandaloneMode) return;
       setShowInstallBanner(true);
     };
 
-    // Global prompt capture handler for POCO / Xiaomi / Samsung / Infinix / All Androids
+    // Global prompt capture handler for POCO / Xiaomi / Samsung / Infinix / Laptops / All
     (window as any).onPwaPromptCaptured = (e: any) => {
       console.log('[PWA Component] Prompt captured via global handler:', e);
       setDeferredPrompt(e);
@@ -131,7 +167,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
       checkAndShowBanner();
     }
 
-    // Capture first touch / user interaction to capture delayed beforeinstallprompt on POCO/Xiaomi/MIUI
+    // Capture first touch / user interaction to capture delayed beforeinstallprompt
     const handleUserInteraction = () => {
       if ((window as any).deferredPrompt) {
         setDeferredPrompt((window as any).deferredPrompt);
@@ -158,7 +194,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
   }, []);
 
   const handleInstallClick = async () => {
-    // If running inside an iFrame (e.g. preview mode), launch in a new tab so browser PWA triggers work
+    // 1. If running inside an iFrame (e.g. AI Studio preview mode), launch in a new tab so browser native PWA triggers work
     if (window.self !== window.top) {
       window.open(window.location.href, '_blank');
       return;
@@ -193,7 +229,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
         (window as any).deferredPrompt = null;
       }
     } else {
-      // NEVER reload or redirect page! Always show direct install modal & top menu guide
+      // Show direct install modal with clear device-specific steps!
       setShowInstallModal(true);
       setShowManualGuide(true);
     }
@@ -202,24 +238,21 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
   const handleOpenInChrome = () => {
     const currentUrl = window.location.href;
     if (deviceInfo.isAndroid && deviceInfo.isInAppBrowser) {
-      // Intent URL ONLY if explicitly user-clicked from inside WhatsApp/Instagram webview to switch to Chrome
       const cleanUrl = currentUrl.replace(/^https?:\/\//, '');
       window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
     } else {
-      // If already in standard browser, show the install modal & guide without reloading!
       setShowInstallModal(true);
       setShowManualGuide(true);
     }
   };
 
   const handleDismissBanner = () => {
-    // Minimize to compact badge instead of destroying
     setIsBannerMinimized(true);
   };
 
   return (
     <>
-      {/* 1. ANIMATED PROFESSIONAL LOADING SPLASH SCREEN */}
+      {/* 1. ANIMATED LOADING SPLASH SCREEN */}
       <AnimatePresence>
         {showSplash && (
           <motion.div
@@ -260,7 +293,9 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                   SYSTEM MANAGEMENT CHURCH (CMS)
                 </h1>
                 <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">
-                  {churchName && churchName !== 'SYSTEM MANAGEMENT CHURCH (CMS)' ? churchName : 'Aplikasi Pelayanan & Manajemen Jemaat'}
+                  {churchName && churchName !== 'SYSTEM MANAGEMENT CHURCH (CMS)'
+                    ? churchName
+                    : 'Aplikasi Pelayanan & Manajemen Jemaat'}
                 </p>
               </div>
 
@@ -286,7 +321,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
             {/* Footer Tagline */}
             <div className="text-center space-y-1 relative z-10">
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
-                Sistem Gereja Digital PWA • Fullscreen Standalone
+                Sistem Gereja Digital PWA • Desktop & Mobile
               </p>
             </div>
           </motion.div>
@@ -308,10 +343,12 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
               </div>
               <div className="leading-tight truncate">
                 <p className="font-extrabold text-slate-950 text-[12px] uppercase tracking-tight">
-                  Pemasangan di {deviceInfo.browserName}:
+                  Pemasangan di {deviceInfo.isDesktop ? 'Laptop/PC' : deviceInfo.browserName}:
                 </p>
                 <p className="text-[11px] text-slate-900 font-semibold truncate">
-                  Ketuk menu <strong className="font-black text-slate-950">Tiga Titik (⋮) / Menu (≡)</strong> di HP → pilih <strong className="font-black text-slate-950">"Instal aplikasi"</strong>
+                  {deviceInfo.isDesktop
+                    ? 'Klik ikon [ ⬇️ / ⊕ ] di samping Address Bar browser, atau Menu (⋮) -> Pilih "Instal CMS Gereja"'
+                    : 'Ketuk menu Tiga Titik (⋮) / Menu (≡) di browser HP -> pilih "Instal aplikasi" / "Tambah ke Layar Utama"'}
                 </p>
               </div>
             </div>
@@ -329,7 +366,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
         )}
       </AnimatePresence>
 
-      {/* 2. PERSISTENT TOP INSTALLATION HEADER BAR & FLOATING BANNER FOR ALL ANDROID DEVICES */}
+      {/* 2. PERSISTENT TOP INSTALLATION HEADER BAR FOR ALL DEVICES */}
       {!isStandalone && (
         <div className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-slate-950 px-3 py-2 border-b border-amber-400/40 shadow-md flex items-center justify-between gap-2 z-[70] relative text-xs font-bold">
           <div className="flex items-center gap-2 min-w-0">
@@ -338,10 +375,10 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
             </div>
             <div className="truncate">
               <span className="font-black text-slate-950 uppercase tracking-tight block sm:inline">
-                Aplikasi CMS Gereja Android
+                Aplikasi CMS Gereja {deviceInfo.isDesktop ? 'Laptop & PC' : 'HP Android & iOS'}
               </span>
               <span className="hidden sm:inline text-[11px] text-slate-900 font-semibold ml-2">
-                • Pasang langsung ke HP tanpa Play Store
+                • Pasang langsung ke device tanpa toko aplikasi
               </span>
             </div>
           </div>
@@ -352,7 +389,13 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
               className="px-3 py-1.5 bg-slate-950 hover:bg-slate-900 text-amber-400 hover:text-amber-300 font-black text-[11px] rounded-xl shadow transition-all flex items-center gap-1 cursor-pointer active:scale-95"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>{isInstalling ? 'Memasang...' : '⚡ INSTAL HP'}</span>
+              <span>
+                {isInstalling
+                  ? 'Memasang...'
+                  : deviceInfo.isDesktop
+                  ? '⚡ INSTAL LAPTOP/PC'
+                  : '⚡ INSTAL KE HP'}
+              </span>
             </button>
             <button
               onClick={() => setShowGuideModal(true)}
@@ -365,7 +408,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
         </div>
       )}
 
-      {/* 2A. MINIMIZED FLOATING BADGE (SO INSTALL METHOD IS NEVER LOST) */}
+      {/* 2A. MINIMIZED FLOATING BADGE */}
       {showInstallBanner && !isStandalone && isBannerMinimized && (
         <motion.button
           initial={{ scale: 0.8, opacity: 0 }}
@@ -378,7 +421,9 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
           <div className="w-6 h-6 rounded-lg bg-amber-500 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
             <img src="./icon.svg" alt="Church App" className="w-full h-full object-contain" />
           </div>
-          <span className="text-white">📲 Instal Aplikasi HP</span>
+          <span className="text-white">
+            {deviceInfo.isDesktop ? '💻 Instal di Laptop/PC' : '📲 Instal Aplikasi HP'}
+          </span>
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
         </motion.button>
       )}
@@ -401,13 +446,15 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h4 className="font-extrabold text-xs text-white">Instal Aplikasi Ke HP Anda</h4>
+                    <h4 className="font-extrabold text-xs text-white">
+                      Instal Aplikasi Ke {deviceInfo.isDesktop ? 'Laptop / PC' : 'HP Anda'}
+                    </h4>
                     <span className="text-[9px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-bold uppercase border border-amber-500/30">
-                      PWA Android Native
+                      PWA Standalone
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 font-medium leading-tight mt-0.5">
-                    Sama seperti aplikasi Android bawaan! Tanpa Play Store, tampilan fullscreen & bebas space bar.
+                    Akses cepat, tampilan fullscreen, ringan & bisa dibuka langsung dari {deviceInfo.isDesktop ? 'Desktop / Start Menu' : 'Home Screen HP'}!
                   </p>
                 </div>
               </div>
@@ -441,7 +488,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
         )}
       </AnimatePresence>
 
-      {/* 3. DIRECT 1-CLICK PWA INSTALLATION CONFIRMATION MODAL (FOR ALL ANDROID / POCO / XIAOMI / INFINIX) */}
+      {/* 3. DIRECT INSTALLATION CONFIRMATION & GUIDE MODAL FOR ALL DEVICES */}
       <AnimatePresence>
         {showInstallModal && (
           <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
@@ -449,11 +496,11 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-900 text-white rounded-3xl max-w-md w-full p-6 border border-slate-800 shadow-2xl space-y-5 relative overflow-hidden"
+              className="bg-slate-900 text-white rounded-3xl max-w-md w-full p-6 border border-slate-800 shadow-2xl space-y-5 relative overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <button
                 onClick={() => setShowInstallModal(false)}
-                className="absolute top-4 right-4 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer z-10"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -463,9 +510,21 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                   <img src="./icon.svg" alt="Church Logo" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-100">Instal Aplikasi Ke Layar Utama HP</h3>
+                  <h3 className="font-extrabold text-base text-slate-100">
+                    {deviceInfo.isDesktop
+                      ? 'Instal Aplikasi Ke Laptop / Komputer'
+                      : 'Instal Aplikasi Ke HP Anda'}
+                  </h3>
                   <p className="text-xs text-amber-400 font-semibold">
-                    {deviceInfo.isAndroid ? 'Android (POCO / Xiaomi / Infinix / All)' : 'Aplikasi Web Resmi'}
+                    {deviceInfo.isDesktop
+                      ? `Laptop / PC (${deviceInfo.browserName})`
+                      : deviceInfo.isIos
+                      ? 'iPhone / iPad (Safari)'
+                      : deviceInfo.isSamsung
+                      ? 'Samsung Internet'
+                      : deviceInfo.isXiaomi
+                      ? 'Xiaomi / POCO / Redmi'
+                      : `Android (${deviceInfo.browserName})`}
                   </p>
                 </div>
               </div>
@@ -474,16 +533,28 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                 <div className="flex items-start gap-2.5 p-3 bg-slate-950/80 rounded-2xl border border-slate-800">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-slate-100 block font-bold">Langsung Terpasang Seperti Aplikasi Android</strong>
-                    <span className="text-slate-400 text-[11px]">Ikon aplikasi langsung muncul di layar utama (home screen) HP Anda.</span>
+                    <strong className="text-slate-100 block font-bold">
+                      {deviceInfo.isDesktop
+                        ? 'Ikon Aplikasi Langsung di Desktop / Start Menu'
+                        : 'Langsung Terpasang Seperti Aplikasi HP Native'}
+                    </strong>
+                    <span className="text-slate-400 text-[11px]">
+                      {deviceInfo.isDesktop
+                        ? 'Buka aplikasi seperti software desktop tanpa membuka tab browser.'
+                        : 'Ikon aplikasi langsung muncul di layar utama (Home Screen) HP Anda.'}
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-2.5 p-3 bg-slate-950/80 rounded-2xl border border-slate-800">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-slate-100 block font-bold">Layar Penuh (Fullscreen) & Bebas Space Bar</strong>
-                    <span className="text-slate-400 text-[11px]">Tidak ada bar browser, berjalan bersih & cepat seperti aplikasi bawaan.</span>
+                    <strong className="text-slate-100 block font-bold">
+                      Layar Penuh (Fullscreen Standalone)
+                    </strong>
+                    <span className="text-slate-400 text-[11px]">
+                      Bebas bar URL browser, berjalan lebih ringan, responsif & cepat.
+                    </span>
                   </div>
                 </div>
               </div>
@@ -496,24 +567,24 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                     <span>Aplikasi Dibuka di Dalam Frame Preview</span>
                   </div>
                   <p className="text-[11px] text-slate-200 leading-snug">
-                    Browser HP (Chrome/Samsung) menyembunyikan tombol "Instal" jika dibuka dari dalam preview. Buka di Tab Baru agar tombol "Instal" otomatis muncul!
+                    Browser menyembunyikan tombol "Instal" jika aplikasi berjalan di dalam frame preview. Buka di Tab Baru agar pemicu Instalasi Browser Aktif 100%!
                   </p>
                   <button
                     onClick={() => window.open(window.location.href, '_blank')}
                     className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    <span>🔗 BUKA DI TAB BARU BROWSER HP</span>
+                    <span>🔗 BUKA DI TAB BARU UNTUK INSTAL</span>
                   </button>
                 </div>
               )}
 
-              {/* If opened inside WhatsApp or In-App Browser on Android, offer 1-tap open in Chrome */}
+              {/* If opened inside WhatsApp or In-App Browser on Android */}
               {deviceInfo.isInAppBrowser && deviceInfo.isAndroid && (
                 <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2 text-xs">
                   <div className="flex items-center gap-2 text-amber-400 font-bold text-[11px]">
                     <Chrome className="w-4 h-4" />
-                    <span>Dideteksi Dibuka dari WhatsApp / Aplikasi Lain</span>
+                    <span>Dideteksi Dibuka dari WhatsApp / Social App</span>
                   </div>
                   <p className="text-[11px] text-slate-300 leading-snug">
                     Untuk hasil instalasi 1-klik otomatis terbaik, buka link ini di Google Chrome.
@@ -528,8 +599,8 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                 </div>
               )}
 
-              {/* Universal 3-Step Direct Installation Guide Box tailored for Samsung / Xiaomi / POCO / Vivo / Oppo / Chrome */}
-              {(showManualGuide || !(deferredPrompt || (window as any).deferredPrompt)) && deviceInfo.isAndroid && !deviceInfo.isInAppBrowser && (
+              {/* Direct Step-by-Step Installation Instruction Box */}
+              {!deviceInfo.isInAppBrowser && (
                 <motion.div
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -538,14 +609,44 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                   <div className="flex items-center justify-between font-black text-amber-300 text-[12px] uppercase tracking-wide">
                     <span className="flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                      Langkah Pasang di HP {deviceInfo.isSamsung ? 'Samsung' : deviceInfo.isXiaomi ? 'Xiaomi / POCO' : deviceInfo.browserName}:
+                      Langkah Pasang di {deviceInfo.isDesktop ? 'Laptop/PC' : deviceInfo.isSamsung ? 'Samsung' : deviceInfo.isXiaomi ? 'Xiaomi / POCO' : deviceInfo.isIos ? 'iPhone / Safari' : deviceInfo.browserName}:
                     </span>
                     <span className="text-[10px] text-amber-300 bg-amber-400/20 px-2 py-0.5 rounded-full font-mono">
-                      BEBAS PLAYSTORE
+                      PWA LIVE
                     </span>
                   </div>
 
-                  {deviceInfo.isSamsung ? (
+                  {deviceInfo.isDesktop ? (
+                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
+                      <li>
+                        Lihat ke <strong className="text-amber-300 font-bold">sebelah kanan Address Bar (Bilah Alamat URL)</strong> di bagian atas browser laptop Anda.
+                      </li>
+                      <li>
+                        Klik ikon <strong className="text-amber-300 font-bold">Instal [ ⬇️ / ⊕ ]</strong> di samping tombol Bookmark (Bintang).
+                      </li>
+                      <li>
+                        Atau klik menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di kanan atas → pilih <strong className="text-amber-300 font-bold">"Instal CMS Gereja..."</strong> atau <strong className="text-amber-300 font-bold">"Aplikasi -&gt; Instal situs ini"</strong>.
+                      </li>
+                      <li>
+                        Klik <strong className="text-amber-300 font-bold">"Instal"</strong> — Aplikasi langsung muncul di Desktop & Start Menu!
+                      </li>
+                    </ol>
+                  ) : deviceInfo.isIos ? (
+                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
+                      <li>
+                        Buka website ini di browser <strong className="text-amber-300 font-bold">Safari</strong> di iPhone/iPad Anda.
+                      </li>
+                      <li>
+                        Ketuk tombol <strong className="text-amber-300 font-bold">Bagikan / Share (📤)</strong> di bagian bawah layar.
+                      </li>
+                      <li>
+                        Gulir ke bawah lalu pilih menu <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama" (Add to Home Screen)</strong>.
+                      </li>
+                      <li>
+                        Ketuk <strong className="text-amber-300 font-bold">"Tambah"</strong> di kanan atas.
+                      </li>
+                    </ol>
+                  ) : deviceInfo.isSamsung ? (
                     <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
                       <li>
                         Ketuk menu <strong className="text-amber-300 font-bold">Garis Tiga (≡)</strong> di kanan bawah layar Samsung Anda.
@@ -564,7 +665,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                     <div className="space-y-2">
                       <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-200 font-medium leading-snug">
                         <li>
-                          Ketuk menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di sudut kanan atas.
+                          Ketuk menu <strong className="text-amber-300 font-bold">Tiga Titik (⋮)</strong> di sudut kanan atas Chrome/Browser.
                         </li>
                         <li>
                           Pilih <strong className="text-amber-300 font-bold">"Instal aplikasi"</strong> atau <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama"</strong>.
@@ -574,7 +675,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                         </li>
                       </ol>
                       <div className="p-2 bg-slate-950/80 rounded-xl text-[10px] text-amber-200 font-normal border border-amber-500/20">
-                        💡 <strong>HP Xiaomi/POCO/Redmi:</strong> Jika popup di atas terhalang, buka <em>Pengaturan HP -&gt; Aplikasi -&gt; Chrome -&gt; Perizinan Lainnya -&gt; Izinkan 'Pintasan Layar Utama'</em>.
+                        💡 <strong>HP Xiaomi/POCO:</strong> Jika popup terhalang, buka <em>Pengaturan HP -&gt; Aplikasi -&gt; Chrome -&gt; Perizinan Lainnya -&gt; Izinkan 'Pintasan Layar Utama'</em>.
                       </div>
                     </div>
                   ) : (
@@ -586,7 +687,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                         Pilih menu <strong className="text-amber-300 font-bold">"Instal aplikasi"</strong> atau <strong className="text-amber-300 font-bold">"Tambahkan ke Layar Utama"</strong>.
                       </li>
                       <li>
-                        Ketuk <strong className="text-amber-300 font-bold">"Instal"</strong> — Ikon aplikasi akan langsung muncul di Home Screen HP!
+                        Ketuk <strong className="text-amber-300 font-bold">"Instal"</strong> — Ikon aplikasi langsung terpasang!
                       </li>
                     </ol>
                   )}
@@ -600,11 +701,18 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                     const promptEvent = deferredPrompt || (window as any).deferredPrompt;
                     if (promptEvent && typeof promptEvent.prompt === 'function') {
                       handleInstallClick();
+                    } else if (deviceInfo.isInIframe) {
+                      window.open(window.location.href, '_blank');
                     } else if (deviceInfo.isInAppBrowser && deviceInfo.isAndroid) {
                       handleOpenInChrome();
                     } else {
-                      // Keep modal open and highlight direct 3-step menu guide!
-                      setShowManualGuide(true);
+                      setShowInstallModal(false);
+                      if (deviceInfo.isDesktop) setActiveGuideTab('desktop');
+                      else if (deviceInfo.isIos) setActiveGuideTab('ios');
+                      else if (deviceInfo.isSamsung) setActiveGuideTab('samsung');
+                      else if (deviceInfo.isXiaomi) setActiveGuideTab('xiaomi');
+                      else setActiveGuideTab('android');
+                      setShowGuideModal(true);
                     }
                   }}
                   disabled={isInstalling}
@@ -615,8 +723,10 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                     {isInstalling
                       ? 'Proses Memasang...'
                       : (deferredPrompt || (window as any).deferredPrompt)
-                      ? '⚡ PASANG LANGSUNG KE HP SAYA'
-                      : '📲 LIHAT LANGKAH PASANG BROWSER HP'}
+                      ? '⚡ PASANG SEKARANG (1-KLIK PROMPT)'
+                      : deviceInfo.isInIframe
+                      ? '🔗 BUKA DI TAB BARU UNTUK INSTAL'
+                      : '📖 BUKA PETUNJUK BERGAMBAR DEVICE SAYA'}
                   </span>
                 </button>
 
@@ -627,12 +737,12 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                       if (navigator.share) {
                         await navigator.share({
                           title: 'CMS Gereja App',
-                          text: 'Instal Aplikasi CMS Gereja langsung di HP Anda:',
+                          text: 'Instal Aplikasi CMS Gereja langsung di HP atau Laptop Anda:',
                           url: window.location.href,
                         });
                       } else {
                         await navigator.clipboard.writeText(window.location.href);
-                        alert('Link aplikasi berhasil disalin! Buka di browser HP Anda.');
+                        alert('Link aplikasi berhasil disalin! Buka di browser Chrome/Safari/Edge Anda.');
                       }
                     } catch (err) {
                       console.log('Share canceled:', err);
@@ -647,14 +757,17 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                 <button
                   onClick={() => {
                     setShowInstallModal(false);
-                    if (deviceInfo.isIos) setActiveGuideTab('ios');
+                    if (deviceInfo.isDesktop) setActiveGuideTab('desktop');
+                    else if (deviceInfo.isIos) setActiveGuideTab('ios');
+                    else if (deviceInfo.isSamsung) setActiveGuideTab('samsung');
+                    else if (deviceInfo.isXiaomi) setActiveGuideTab('xiaomi');
                     else setActiveGuideTab('android');
                     setShowGuideModal(true);
                   }}
                   className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-medium text-xs rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Petunjuk Gambar Semua Device (POCO/Samsung/Oppo/Vivo)</span>
+                  <span>Petunjuk Instalasi Semua Device (Laptop/POCO/Samsung/iOS)</span>
                 </button>
               </div>
             </motion.div>
@@ -662,7 +775,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
         )}
       </AnimatePresence>
 
-      {/* 4. OPTIONAL PWA INSTALLATION GUIDE MODAL (ONLY OPENED WHEN USER EXPLICITLY CLICKS "Panduan Bantuan") */}
+      {/* 4. PWA INSTALLATION GUIDE MODAL WITH DEVICE TABS */}
       <AnimatePresence>
         {showGuideModal && (
           <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -681,43 +794,54 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
 
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-amber-500/20 text-amber-400 rounded-2xl text-2xl">
-                  📱
+                  {activeGuideTab === 'desktop' ? '💻' : '📱'}
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-slate-100 uppercase tracking-wide">
-                    PANDUAN INSTALASI HP
+                    PANDUAN INSTALASI {activeGuideTab === 'desktop' ? 'LAPTOP / PC' : 'HP'}
                   </h3>
-                  <p className="text-xs text-slate-400">Instalasi Mudah Tanpa Play Store</p>
+                  <p className="text-xs text-slate-400">Instalasi Mudah & Cepat Tanpa App Store</p>
                 </div>
               </div>
 
               {/* PLATFORM SELECTOR TABS */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-[11px]">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 text-[10px]">
+                <button
+                  onClick={() => setActiveGuideTab('desktop')}
+                  className={`py-2 px-1 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    activeGuideTab === 'desktop'
+                      ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Laptop className="w-3.5 h-3.5" />
+                  <span>Laptop/PC</span>
+                </button>
                 <button
                   onClick={() => setActiveGuideTab('android')}
-                  className={`py-2 px-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  className={`py-2 px-1 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeGuideTab === 'android'
                       ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Chrome className="w-3.5 h-3.5" />
-                  <span>Chrome / All</span>
+                  <span>Chrome</span>
                 </button>
                 <button
                   onClick={() => setActiveGuideTab('xiaomi')}
-                  className={`py-2 px-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  className={`py-2 px-1 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeGuideTab === 'xiaomi'
                       ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Smartphone className="w-3.5 h-3.5" />
-                  <span>POCO / Xiaomi</span>
+                  <span>POCO/Xiaomi</span>
                 </button>
                 <button
                   onClick={() => setActiveGuideTab('samsung')}
-                  className={`py-2 px-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  className={`py-2 px-1 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeGuideTab === 'samsung'
                       ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                       : 'text-slate-400 hover:text-slate-200'
@@ -728,16 +852,42 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                 </button>
                 <button
                   onClick={() => setActiveGuideTab('ios')}
-                  className={`py-2 px-2 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  className={`py-2 px-1 font-bold rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer ${
                     activeGuideTab === 'ios'
                       ? 'bg-amber-500 text-slate-950 shadow-md font-black'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   <Compass className="w-3.5 h-3.5" />
-                  <span>iPhone / iOS</span>
+                  <span>iPhone/iOS</span>
                 </button>
               </div>
+
+              {/* TAB CONTENT: LAPTOP / PC / DESKTOP */}
+              {activeGuideTab === 'desktop' && (
+                <div className="space-y-3 animate-fade-in text-xs text-slate-300">
+                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
+                      <Monitor className="w-4 h-4" />
+                      <span>Google Chrome / Microsoft Edge / Brave (Laptop & Komputer)</span>
+                    </div>
+                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300 font-medium leading-relaxed">
+                      <li>
+                        Lihat ke <strong className="text-amber-400">sebelah kanan Address Bar (Bilah URL)</strong> di bagian atas browser laptop Anda.
+                      </li>
+                      <li>
+                        Klik ikon <strong className="text-amber-400 font-bold">Instal [ ⬇️ / 💻 / ⊕ ]</strong> yang muncul di samping tombol Bookmark Bintang.
+                      </li>
+                      <li>
+                        Atau klik menu <strong className="text-amber-400 font-bold">Tiga Titik (⋮)</strong> di kanan atas → pilih <strong className="text-amber-400 font-bold">"Instal CMS Gereja..."</strong> atau <strong className="text-amber-400 font-bold">"Aplikasi -&gt; Instal situs ini sebagai aplikasi"</strong>.
+                      </li>
+                      <li>
+                        Klik <strong className="text-amber-400 font-bold">"Instal"</strong> — Aplikasi langsung muncul di Desktop &amp; Start Menu laptop Anda!
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              )}
 
               {/* TAB CONTENT: ANDROID (CHROME / INFINIX / VIVO / OPPO / REALME) */}
               {activeGuideTab === 'android' && (
@@ -745,7 +895,7 @@ export default function PwaInstallAndSplash({ churchName = 'SYSTEM MANAJEMEN CHU
                   <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
                     <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
                       <Chrome className="w-4 h-4" />
-                      <span>Google Chrome / Infinix / Vivo / Oppo</span>
+                      <span>Google Chrome / Infinix / Vivo / Oppo / Realme</span>
                     </div>
                     <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-300 font-medium leading-relaxed">
                       <li>Ketuk ikon <strong className="text-amber-400">Tiga Titik (⋮)</strong> di sudut kanan atas Chrome.</li>
